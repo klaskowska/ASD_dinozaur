@@ -44,6 +44,10 @@ int max(int a, int b) {
     return a > b ? a : b;
 }
 
+int min(int a, int b) {
+    return a < b ? a : b;
+}
+
 // sprawdza, czy cale poddrzewo sklada sie z jednakowych liter
 bool is_uniform(Node *v) {
     if (v == NULL) return true;
@@ -265,7 +269,8 @@ void print(Node *v) {
     if (v==NULL) {
         printf("-");
     } else {
-        printf("(v=%d,c=%d,max=%d,", v->letter, v->count, v->max_segment_length);
+        printf("(v=%c,c=%d,max=%d,f=%c,f_c=%d,l=%c,l_c=%d, ", v->letter, v->count, v->max_segment_length
+                , v->first_letter, v->first_segment_length, v->last_letter, v->last_segment_length);
         print(v->left);
         printf(",");
         print(v->right);
@@ -289,18 +294,86 @@ Node *create_tree(size_t code_length, char *code) {
     return root;
 }
 
+void update_length(Node *root, bool *is_value, int *max_length, char *last_letter, int *last_segment_length) {
+    if (*is_value && *last_letter == root->first_letter) {
+        *max_length = max(*max_length, *last_segment_length + root->first_segment_length);
+        if (is_uniform(root)) {
+            *last_segment_length += root->count;
+        }
+        else {
+            *last_letter = root->last_letter;
+            *last_segment_length = root->last_segment_length;
+        }
+    }
+    else {
+        *last_letter = root->last_letter;
+        *last_segment_length = root->last_segment_length;
+    }
+    *max_length = max(*max_length, root->max_segment_length);
+    *is_value = true;
+}
+
+void max_segment_length_interval_helper(Node *root, int j, int k, bool *is_value, int *max_length, char *last_letter,
+                                        int *last_segment_length) {
+    if (k - j + 1 == root->count) {
+        update_length(root, is_value, max_length, last_letter, last_segment_length);
+    }
+    else {
+        if (j <= root->left->count) {
+            max_segment_length_interval_helper(root->left, j, min(k, root->left->count), is_value, max_length, last_letter, last_segment_length);
+        }
+        if (j <= root->left->count + 1 && k >= root->left->count + 1) {
+            Node *tmp = new Node(root->letter);
+            update_length(tmp, is_value, max_length, last_letter, last_segment_length);
+            delete tmp;
+        }
+        if (k > root->left->count + 1) {
+            max_segment_length_interval_helper(root->right, max(1, j - root->left->count - 1), k - root->left->count - 1, is_value, max_length, last_letter, last_segment_length);
+        }
+    }
+}
+
+int max_segment_length_interval(Node *root, int j, int k) {
+    bool is_value = false;
+    int max_length = 1;
+    int last_segment_length;
+    char last_letter;
+    max_segment_length_interval_helper(root, j, k, &is_value, &max_length, &last_letter, &last_segment_length);
+    return max_length;
+}
+
+void operation_N(Node *root, int j, int k) {
+    cout << max_segment_length_interval(root, j, k);
+}
+
 //TODO delete drzewo
 int main() {
-    char tab[8] = {'A', 'A', 'V', 'A', 'A', 'D', 'D', 'D'};
-    Node *root = create_tree(8, tab);
+    int n, m, j, k, l;
+    char type;
+    std::cin >> n;
+    std::cin >> m;
 
-//    Node *root = NULL;
-//    root = insert(root, 1, new Node('A'));
-//    root = insert(root, 2, new Node('G'));
-//    root = insert(root, 3, new Node('G'));
-//    root = insert(root, 4, new Node('G'));
-//    root = insert(root, 5, new Node('A'));
-//    root = insert(root, 6, new Node('G'));
-    print(root);
+    char code[n];
+    std::cin >> code;
+    Node *root = create_tree(n, code);
+
+    //print(root);
+
+    for (int i = 0; i < m; i++) {
+        std::cin >> type;
+        std::cin >> j;
+        std::cin >> k;
+        switch (type) {
+            case 'O':
+                //polecenie_O(&s, j, k);
+                break;
+            case 'P':
+                std::cin >> l;
+                //polecenie_P(&s, j, k, l);
+                break;
+            case 'N':
+                operation_N(root, j, k);
+        }
+    }
     return 0;
 }
