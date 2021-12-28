@@ -119,7 +119,7 @@ void update(Node *v) {
     v->max_segment_length = max(v->max_segment_length, max_candidate);
 }
 
-void left_rotation(Node *root, Node *v) {
+void left_rotation(Node **root, Node *v) {
     Node *w = v->right;
     Node *p = v->up;
 
@@ -138,14 +138,14 @@ void left_rotation(Node *root, Node *v) {
             else
                 p->right = w;
         }
-        else root = w;
+        else *root = w;
 
         update(v);
         update(w);
     }
 }
 
-void right_rotation(Node *root, Node *v) {
+void right_rotation(Node **root, Node *v) {
     Node *w = v->left;
     Node *p = v->up;
 
@@ -163,7 +163,7 @@ void right_rotation(Node *root, Node *v) {
             else
                 p->right = w;
         }
-        else root = w;
+        else *root = w;
 
         update(v);
         update(w);
@@ -183,12 +183,12 @@ Node *kth_node(Node *v, int k) {
         return kth_node(v->right, k - count_left - 1);
 }
 
-void splay (Node *root, int index) {
+void splay (Node **root, int index) {
     Node *x;
 
     // Poszukujemy węzła o kluczu k, poczynając od korzenia
     if (root != NULL) {
-        x = kth_node(root, index);
+        x = kth_node(*root, index);
 
         while (true)           // W pętli węzeł x przesuwamy do korzenia
         {
@@ -196,8 +196,8 @@ void splay (Node *root, int index) {
 
             if (x->up->up == NULL)
             {                     // Ojcem x jest korzeń. Wykonujemy ZIG
-                if (x->up->left == x) right_rotation( root, x->up );
-                else left_rotation( root, x->up );
+                if (x->up->left == x) right_rotation(root, x->up);
+                else left_rotation(root, x->up);
                 break;              // Kończymy
             }
 
@@ -239,7 +239,7 @@ Node *insert(Node *v, int i, Node *w) {
         reverse(v);
     }
 
-    splay(v, i);
+    splay(&v, i);
     w->up = v;
     if (get_count(v->left) == i - 1) {
         w->left = v->left;
@@ -273,16 +273,34 @@ void print(Node *v) {
     }
 }
 
+Node *create_tree(size_t code_length, char *code) {
+    if (code_length <= 0)
+        return NULL;
+    Node *root;
+    size_t i = code_length / 2;
+    root = new Node(code[i]);
+    root->left = create_tree(i, code);
+    if (root->left != NULL)
+        root->left->up = root;
+    root->right = create_tree(code_length - i - 1, code + i + 1);
+    if (root->right != NULL)
+        root->right->up = root;
+    update(root);
+    return root;
+}
+
 //TODO delete drzewo
 int main() {
-    // problem ze splay, bo nie dodaja sie wezly
-    Node *root = NULL;
-    root = insert(root, 1, new Node('A'));
-    root = insert(root, 2, new Node('G'));
-    root = insert(root, 3, new Node('G'));
-    root = insert(root, 4, new Node('G'));
-    root = insert(root, 5, new Node('A'));
-    root = insert(root, 6, new Node('G'));
+    char tab[8] = {'A', 'A', 'V', 'A', 'A', 'D', 'D', 'D'};
+    Node *root = create_tree(8, tab);
+
+//    Node *root = NULL;
+//    root = insert(root, 1, new Node('A'));
+//    root = insert(root, 2, new Node('G'));
+//    root = insert(root, 3, new Node('G'));
+//    root = insert(root, 4, new Node('G'));
+//    root = insert(root, 5, new Node('A'));
+//    root = insert(root, 6, new Node('G'));
     print(root);
     return 0;
 }
