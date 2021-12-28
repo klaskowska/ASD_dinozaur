@@ -179,7 +179,7 @@ Node *kth_node(Node *v, int k) {
         return kth_node(v, v->count);
 
     int count_left = (v->left != NULL ? v->left->count : 0);
-    if (k < count_left)
+    if (k <= count_left)
         return kth_node(v->left, k);
     else if (k == count_left + 1)
         return v;
@@ -187,12 +187,25 @@ Node *kth_node(Node *v, int k) {
         return kth_node(v->right, k - count_left - 1);
 }
 
+void print(Node *v) {
+    if (v==NULL) {
+        printf("-");
+    } else {
+        printf("(v=%c,c=%d,max=%d,f=%c,f_c=%d,l=%c,l_c=%d, ", v->letter, v->count, v->max_segment_length
+                , v->first_letter, v->first_segment_length, v->last_letter, v->last_segment_length);
+        print(v->left);
+        printf(",");
+        print(v->right);
+        printf(")");
+    }
+}
+
 void splay (Node **root, int index) {
-    Node *x;
+
 
     // Poszukujemy węzła o kluczu k, poczynając od korzenia
-    if (root != NULL) {
-        x = kth_node(*root, index);
+    if (*root != NULL) {
+        Node *x = kth_node(*root, index);
 
         while (true)           // W pętli węzeł x przesuwamy do korzenia
         {
@@ -245,19 +258,10 @@ Node *insert(Node *v, int i, Node *w) {
 
     splay(&v, i);
     w->up = v;
-    if (get_count(v->left) == i - 1) {
-        w->left = v->left;
-        v->left = w;
-        if (w->left != NULL) {
-            w->left->up = w;
-        }
-    }
-    else {
-        w->right = v->right;
-        v->right = w;
-        if (w->right != NULL) {
-            w->right->up = w;
-        }
+    w->left = v->left;
+    v->left = w;
+    if (w->left != NULL) {
+        w->left->up = w;
     }
 
     update(w);
@@ -265,18 +269,34 @@ Node *insert(Node *v, int i, Node *w) {
     return v;
 }
 
-void print(Node *v) {
-    if (v==NULL) {
-        printf("-");
-    } else {
-        printf("(v=%c,c=%d,max=%d,f=%c,f_c=%d,l=%c,l_c=%d, ", v->letter, v->count, v->max_segment_length
-                , v->first_letter, v->first_segment_length, v->last_letter, v->last_segment_length);
-        print(v->left);
-        printf(",");
-        print(v->right);
-        printf(")");
+Node *remove(Node *root, int index, Node **deleted) {
+    splay(&root, index);
+    Node *l = root->left;
+    Node *r = root->right;
+    root->up = NULL;
+    root->left = NULL;
+    root->right = NULL;
+    *deleted = root;
+    root = NULL;
+
+    if (l == NULL) {
+        return r;
     }
+    if (r == NULL) {
+        return l;
+    }
+
+    l->up = NULL;
+    splay(&l, index);
+    l->right = r;
+    r->up = l;
+    root = l;
+    update(l);
+
+    return root;
 }
+
+
 
 Node *create_tree(size_t code_length, char *code) {
     if (code_length <= 0)
@@ -346,6 +366,103 @@ void operation_N(Node *root, int j, int k) {
     cout << max_segment_length_interval(root, j, k);
 }
 
+Node *insert_subtree(Node *root, Node *deleted, int l) {
+    splay(&root, l);
+
+    if (l == 1) {
+        root->left = deleted;
+        deleted->up = root;
+        update(root);
+    }
+    else if (l == root->count + 1) {
+        root->right = deleted;
+        deleted->up = root;
+        update(root);
+    }
+    else {
+        splay(&deleted, 1);
+        deleted->left = root->left;
+        deleted->left->up = deleted;
+        deleted->up = root;
+        root->left = deleted;
+        update(deleted);
+        update(root);
+    }
+
+    return root;
+}
+
+Node *operation_P(Node *root, int j, int k, int l) {
+    if (k - j + 1 == root->count) {
+        return root;
+    }
+
+    splay(&root, k + 1);
+
+    Node *deleted;
+    if (j == 1) {
+        deleted = root->left;
+        deleted->up = NULL;
+        root->left = NULL;
+        update(root);
+    }
+    else {
+        root->left->up = NULL;
+        splay(&root->left, j - 1);
+        root->left->up = root;
+
+        deleted = root->left->right;
+        deleted->up = NULL;
+        root->left->right = root;
+        root = root->left;
+        root->right->left = NULL;
+        root->right->up = root;
+        update(root->right);
+        root->up = NULL;
+        update(root);
+    }
+    root = insert_subtree(root, deleted, l);
+    return root;
+}
+
+Node *find_subtree(Node *root, int j, int k) {
+    if (k - j + 1 == root->count) {
+        return root;
+    }
+
+    splay(&root, k + 1);
+
+    if (j == 1) {
+        return root->left;
+    }
+    else {
+        root->left->up = NULL;
+        splay(&root->left, j - 1);
+        root->left->up = root;
+        return root->left->right;
+    }
+}
+
+void reverse_tree(Node *root) {
+    Node *tmp = root->right;
+    root->right = root->left;
+    root->left = tmp;
+
+    if (root->left != NULL) {
+        reverse_tree(root->left);
+    }
+    if (root->right != NULL) {
+        reverse_tree(root->right);
+    }
+}
+
+Node *operation_O(Node *root, int j, int k) {
+    Node *subtree = find_subtree(root, j, k);
+    Node *father = subtree->up;
+
+    update(father);
+}
+
 //TODO delete drzewo
 int main() {
     int n, m, j, k, l;
@@ -357,7 +474,7 @@ int main() {
     std::cin >> code;
     Node *root = create_tree(n, code);
 
-    //print(root);
+//    print(root);
 
     for (int i = 0; i < m; i++) {
         std::cin >> type;
@@ -365,15 +482,17 @@ int main() {
         std::cin >> k;
         switch (type) {
             case 'O':
-                //polecenie_O(&s, j, k);
+                root = operation_O(root, j, k);
                 break;
             case 'P':
                 std::cin >> l;
-                //polecenie_P(&s, j, k, l);
+                root = operation_P(root, j, k, l);
                 break;
             case 'N':
                 operation_N(root, j, k);
         }
     }
+
+    print(root);
     return 0;
 }
