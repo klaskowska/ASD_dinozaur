@@ -471,7 +471,14 @@ Node *operation_O(Node *root, int j, int k) {
     return root;
 }
 
-//TODO delete drzewo
+void delete_tree(Node *root) {
+    if (root != NULL) {
+        delete_tree(root->left);
+        delete_tree(root->right);
+    }
+    delete root;
+}
+
 int main() {
     int n, m, j, k, l;
     char type;
@@ -500,5 +507,8 @@ int main() {
                 operation_N(root, j, k);
         }
     }
+
+    delete_tree(root);
+
     return 0;
 }
