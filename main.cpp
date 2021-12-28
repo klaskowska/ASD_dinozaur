@@ -26,7 +26,7 @@ struct Node {
     struct Node *right;
 
     Node(char _letter) : letter(_letter), count(1), is_reverse(false), max_segment_length(1), first_letter(_letter),
-    first_segment_length(1), last_letter(_letter), last_segment_length(1), up(NULL), left(NULL), right(NULL) { }
+                         first_segment_length(1), last_letter(_letter), last_segment_length(1), up(NULL), left(NULL), right(NULL) { }
 };
 
 void reverse(Node *v) {
@@ -147,26 +147,89 @@ void left_rotation(Node *root, Node *v) {
 
 void right_rotation(Node *root, Node *v) {
     Node *w = v->left;
-    Node *v_up = v->up;
+    Node *p = v->up;
 
     if (w != NULL) {
         v->left = w->right;
         if (v->left != NULL) v->left->up = v;
 
         w->right = v;
-        w->up = v_up;
+        w->up = p;
         v->up = w;
 
-        if (v_up != NULL) {
-            if (v_up->left == v)
-                v_up->left = v_left;
+        if (p != NULL) {
+            if (p->left == v)
+                p->left = w;
             else
-                v_up->right = v_left;
+                p->right = w;
         }
-        else root = v_left;
+        else root = w;
+
+        update(v);
+        update(w);
     }
 }
 
+Node *kth_node(Node *v, int k) {
+    if (k > v->count)
+        return kth_node(v, v->count);
+
+    int count_left = (v->left != NULL ? v->left->count : 0);
+    if (k < count_left)
+        return kth_node(v->left, k);
+    else if (k == count_left + 1)
+        return v;
+    else
+        return kth_node(v->right, k - count_left - 1);
+}
+
+void splay (Node *root, int index) {
+    Node *x;
+
+    // Poszukujemy węzła o kluczu k, poczynając od korzenia
+    if (root != NULL) {
+        x = kth_node(root, index);
+
+        while (true)           // W pętli węzeł x przesuwamy do korzenia
+        {
+            if (x->up == NULL) break;   // x jest korzeniem, kończymy
+
+            if (x->up->up == NULL)
+            {                     // Ojcem x jest korzeń. Wykonujemy ZIG
+                if (x->up->left == x) right_rotation( root, x->up );
+                else left_rotation( root, x->up );
+                break;              // Kończymy
+            }
+
+            if( ( x->up->up->left == x->up ) && ( x->up->left == x ) )
+            {                     // prawy ZIG-ZIG
+                right_rotation( root, x->up->up );
+                right_rotation( root, x->up );
+                continue;
+            }
+
+            if( ( x->up->up->right == x->up ) && ( x->up->right == x ) )
+            {                     // lewy ZIG-ZIG
+                left_rotation( root, x->up->up );
+                left_rotation( root, x->up );
+                continue;
+            }
+
+            if( x->up->right == x )
+            {                     // lewy ZIG, prawy ZAG
+                left_rotation( root, x->up );
+                right_rotation( root, x->up );
+            }
+            else
+            {                     // prawy ZIG, lewy ZAG
+                right_rotation( root, x->up );
+                left_rotation( root, x->up );
+            }
+        }
+    }
+}
+
+// i = 1...n
 // wstawia na i-te miejsce węzeł w
 Node *insert(Node *v, int i, Node *w) {
     if (v == NULL) {
@@ -175,10 +238,25 @@ Node *insert(Node *v, int i, Node *w) {
     if (v->is_reverse) {
         reverse(v);
     }
-    if (i <= get_count(v->left))
-        v->left = insert(v->left, i, w);
-    else
-        v->right = insert(v->right, i - get_count(v->left) - 1, w);
+
+    splay(v, i);
+    w->up = v;
+    if (get_count(v->left) == i - 1) {
+        w->left = v->left;
+        v->left = w;
+        if (w->left != NULL) {
+            w->left->up = w;
+        }
+    }
+    else {
+        w->right = v->right;
+        v->right = w;
+        if (w->right != NULL) {
+            w->right->up = w;
+        }
+    }
+
+    update(w);
     update(v);
     return v;
 }
@@ -195,14 +273,16 @@ void print(Node *v) {
     }
 }
 
+//TODO delete drzewo
 int main() {
+    // problem ze splay, bo nie dodaja sie wezly
     Node *root = NULL;
-    root = insert(root, 0, new Node('A'));
-    root = insert(root, 1, new Node('G'));
+    root = insert(root, 1, new Node('A'));
     root = insert(root, 2, new Node('G'));
     root = insert(root, 3, new Node('G'));
-    root = insert(root, 4, new Node('A'));
-    root = insert(root, 5, new Node('G'));
+    root = insert(root, 4, new Node('G'));
+    root = insert(root, 5, new Node('A'));
+    root = insert(root, 6, new Node('G'));
     print(root);
     return 0;
 }
