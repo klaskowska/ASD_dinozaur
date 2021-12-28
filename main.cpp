@@ -363,7 +363,12 @@ int max_segment_length_interval(Node *root, int j, int k) {
 }
 
 void operation_N(Node *root, int j, int k) {
-    cout << max_segment_length_interval(root, j, k);
+    if (j == k) {
+        cout << "1\n";
+    }
+    else {
+        cout << max_segment_length_interval(root, j, k) << '\n';
+    }
 }
 
 Node *insert_subtree(Node *root, Node *deleted, int l) {
@@ -464,6 +469,8 @@ void reverse_tree(Node *root) {
 }
 
 Node *operation_O(Node *root, int j, int k) {
+    if (j == k)
+        return root;
     Node *subtree = find_subtree(&root, j, k);
     Node *father = subtree->up;
     reverse_tree(subtree);
@@ -480,6 +487,10 @@ void delete_tree(Node *root) {
 }
 
 int main() {
+    std::ios_base::sync_with_stdio(false);
+
+    std::cin.tie(NULL);
+
     int n, m, j, k, l;
     char type;
     std::cin >> n;
