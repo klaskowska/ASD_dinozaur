@@ -373,7 +373,6 @@ void operation_N(Node *root, int j, int k) {
 
 Node *insert_subtree(Node *root, Node *deleted, int l) {
     splay(&root, l);
-
     if (l == 1) {
         root->left = deleted;
         deleted->up = root;
@@ -402,29 +401,40 @@ Node *operation_P(Node *root, int j, int k, int l) {
         return root;
     }
 
-    splay(&root, k + 1);
-
     Node *deleted;
-    if (j == 1) {
-        deleted = root->left;
+
+    if (k == root->count) {
+        splay(&root, j - 1);
+        deleted = root->right;
         deleted->up = NULL;
-        root->left = NULL;
+        root->right = NULL;
         update(root);
     }
     else {
-        root->left->up = NULL;
-        splay(&root->left, j - 1);
-        root->left->up = root;
 
-        deleted = root->left->right;
-        deleted->up = NULL;
-        root->left->right = root;
-        root = root->left;
-        root->right->left = NULL;
-        root->right->up = root;
-        update(root->right);
-        root->up = NULL;
-        update(root);
+        splay(&root, k + 1);
+
+
+        if (j == 1) {
+            deleted = root->left;
+            deleted->up = NULL;
+            root->left = NULL;
+            update(root);
+        } else {
+            root->left->up = NULL;
+            splay(&root->left, j - 1);
+            root->left->up = root;
+
+            deleted = root->left->right;
+            deleted->up = NULL;
+            root->left->right = root;
+            root = root->left;
+            root->right->left = NULL;
+            root->right->up = root;
+            update(root->right);
+            root->up = NULL;
+            update(root);
+        }
     }
     root = insert_subtree(root, deleted, l);
     return root;
@@ -474,7 +484,8 @@ Node *operation_O(Node *root, int j, int k) {
     Node *subtree = find_subtree(&root, j, k);
     Node *father = subtree->up;
     reverse_tree(subtree);
-    update(father);
+    if (father != NULL)
+        update(father);
     return root;
 }
 
@@ -484,6 +495,14 @@ void delete_tree(Node *root) {
         delete_tree(root->right);
     }
     delete root;
+}
+
+void print_code(Node *root) {
+    if (root != NULL) {
+        print_code(root->left);
+        cout << root->letter;
+        print_code(root->right);
+    }
 }
 
 int main() {
@@ -500,6 +519,8 @@ int main() {
     std::cin >> code;
     Node *root = create_tree(n, code);
 
+//    print_code(root);
+//    cout<<endl;
 //    print(root);
 
     for (int i = 0; i < m; i++) {
@@ -509,10 +530,14 @@ int main() {
         switch (type) {
             case 'O':
                 root = operation_O(root, j, k);
+//                print_code(root);
+//                cout <<endl;
                 break;
             case 'P':
                 std::cin >> l;
                 root = operation_P(root, j, k, l);
+//                print_code(root);
+//                cout << endl;
                 break;
             case 'N':
                 operation_N(root, j, k);
