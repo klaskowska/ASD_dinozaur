@@ -335,20 +335,20 @@ void update_length(Node *root, bool *is_value, int *max_length, char *last_lette
 
 void max_segment_length_interval_helper(Node *root, int j, int k, bool *is_value, int *max_length, char *last_letter,
                                         int *last_segment_length) {
-    if (k - j + 1 == root->count) {
+    if (k - j + 1 == get_count(root)) {
         update_length(root, is_value, max_length, last_letter, last_segment_length);
     }
     else {
-        if (j <= root->left->count) {
-            max_segment_length_interval_helper(root->left, j, min(k, root->left->count), is_value, max_length, last_letter, last_segment_length);
+        if (j <= get_count(root->left)) {
+            max_segment_length_interval_helper(root->left, j, min(k, get_count(root->left)), is_value, max_length, last_letter, last_segment_length);
         }
-        if (j <= root->left->count + 1 && k >= root->left->count + 1) {
+        if (j <= get_count(root->left) + 1 && k >= get_count(root->left) + 1) {
             Node *tmp = new Node(root->letter);
             update_length(tmp, is_value, max_length, last_letter, last_segment_length);
             delete tmp;
         }
-        if (k > root->left->count + 1) {
-            max_segment_length_interval_helper(root->right, max(1, j - root->left->count - 1), k - root->left->count - 1, is_value, max_length, last_letter, last_segment_length);
+        if (k > get_count(root->left) + 1) {
+            max_segment_length_interval_helper(root->right, max(1, j - get_count(root->left) - 1), k - get_count(root->left) - 1, is_value, max_length, last_letter, last_segment_length);
         }
     }
 }
@@ -425,42 +425,50 @@ Node *operation_P(Node *root, int j, int k, int l) {
     return root;
 }
 
-Node *find_subtree(Node *root, int j, int k) {
-    if (k - j + 1 == root->count) {
-        return root;
+Node *find_subtree(Node **root, int j, int k) {
+    if (k - j + 1 == (*root)->count) {
+        return *root;
     }
 
-    splay(&root, k + 1);
+    if (k == (*root)->count) {
+        splay(root, j - 1);
+        return (*root)->right;
+    }
+
+    splay(root, k + 1);
 
     if (j == 1) {
-        return root->left;
+        return (*root)->left;
     }
     else {
-        root->left->up = NULL;
-        splay(&root->left, j - 1);
-        root->left->up = root;
-        return root->left->right;
+        (*root)->left->up = NULL;
+        splay(&(*root)->left, j - 1);
+        (*root)->left->up = *root;
+        return (*root)->left->right;
     }
 }
 
 void reverse_tree(Node *root) {
-    Node *tmp = root->right;
-    root->right = root->left;
-    root->left = tmp;
-
     if (root->left != NULL) {
         reverse_tree(root->left);
     }
     if (root->right != NULL) {
         reverse_tree(root->right);
     }
+
+    Node *tmp = root->right;
+    root->right = root->left;
+    root->left = tmp;
+
+    update(root);
 }
 
 Node *operation_O(Node *root, int j, int k) {
-    Node *subtree = find_subtree(root, j, k);
+    Node *subtree = find_subtree(&root, j, k);
     Node *father = subtree->up;
-
+    reverse_tree(subtree);
     update(father);
+    return root;
 }
 
 //TODO delete drzewo
@@ -492,7 +500,5 @@ int main() {
                 operation_N(root, j, k);
         }
     }
-
-    print(root);
     return 0;
 }
