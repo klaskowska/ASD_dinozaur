@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cassert>
 
 // na razie bez uwzgledniania is_reverse
 // moze to po prostu zrobic jako że wyznaczamy poddrzewo i robimy od razu na nim reverse
@@ -29,11 +30,32 @@ struct Node {
                          first_segment_length(1), last_letter(_letter), last_segment_length(1), up(NULL), left(NULL), right(NULL) { }
 };
 
-void reverse(Node *v) {
-    Node *tmp = v->left;
-    v->left = v->right;
-    v->right = tmp;
-    v->is_reverse = true;
+void update(Node *v);
+
+void make_reversed(Node *v) {
+    if (v == NULL)
+        return;
+
+    v->is_reverse = !v->is_reverse;
+    char first = v->first_letter;
+    int first_length = v->first_segment_length;
+    v->first_letter = v->last_letter;
+    v->first_segment_length = v->last_segment_length;
+    v->last_letter = first;
+    v->last_segment_length = first_length;
+}
+
+void unpack(Node *v) {
+    if (v != NULL && v->is_reverse) {
+        v->is_reverse = false;
+
+        Node *tmp = v->left;
+        v->left = v->right;
+        v->right = tmp;
+
+        make_reversed(v->left);
+        make_reversed(v->right);
+    }
 }
 
 int get_count(Node *v) {
@@ -91,6 +113,7 @@ int get_last_segment_length(Node *v) {
     else return v->last_segment_length;
 }
 
+// zakladam, ze v jest unpacked, czyli left i right maja dobrze ustawione atrybuty
 void update(Node *v) {
     v->count = 1 + get_count(v->left) + get_count(v->right);
     v->first_letter = get_first_letter_left(v);
@@ -123,11 +146,16 @@ void update(Node *v) {
     v->max_segment_length = max(v->max_segment_length, max_candidate);
 }
 
+// dostaje odpakowany root i nieodpakowane v; wychodzi z odpakowanym root
 void left_rotation(Node **root, Node *v) {
+    unpack(v);
+
     Node *w = v->right;
     Node *p = v->up;
 
     if (w != NULL) {
+        unpack(w);
+
         v->right = w->left;
         if (v->right != NULL )
             v->right->up = v;
@@ -136,6 +164,8 @@ void left_rotation(Node **root, Node *v) {
         w->up = p;
         v->up = w;
 
+        // ten unpack chyba niepotrzebny
+        unpack(p);
         if (p != NULL) {
             if (p->left == v)
                 p->left = w;
@@ -149,11 +179,22 @@ void left_rotation(Node **root, Node *v) {
     }
 }
 
+void print_code(Node *root) {
+    if (root != NULL) {
+        print_code(root->left);
+        cout << root->letter;
+        print_code(root->right);
+    }
+}
+
 void right_rotation(Node **root, Node *v) {
+    unpack(v);
+
     Node *w = v->left;
     Node *p = v->up;
 
     if (w != NULL) {
+        unpack(w);
         v->left = w->right;
         if (v->left != NULL) v->left->up = v;
 
@@ -161,6 +202,8 @@ void right_rotation(Node **root, Node *v) {
         w->up = p;
         v->up = w;
 
+        //chyba niepotrzebne
+        unpack(p);
         if (p != NULL) {
             if (p->left == v)
                 p->left = w;
@@ -174,25 +217,30 @@ void right_rotation(Node **root, Node *v) {
     }
 }
 
+// dostaje odpakowane v
 Node *kth_node(Node *v, int k) {
     if (k > v->count)
         return kth_node(v, v->count);
 
     int count_left = (v->left != NULL ? v->left->count : 0);
-    if (k <= count_left)
+    if (k <= count_left) {
+        unpack(v->left);
         return kth_node(v->left, k);
+    }
     else if (k == count_left + 1)
         return v;
-    else
+    else {
+        unpack(v->right);
         return kth_node(v->right, k - count_left - 1);
+    }
 }
 
 void print(Node *v) {
     if (v==NULL) {
         printf("-");
     } else {
-        printf("(v=%c,c=%d,max=%d,f=%c,f_c=%d,l=%c,l_c=%d, ", v->letter, v->count, v->max_segment_length
-                , v->first_letter, v->first_segment_length, v->last_letter, v->last_segment_length);
+        printf("(v=%c,c=%d,max=%d,f=%c,f_c=%d,l=%c,l_c=%d,neg=%d, ", v->letter, v->count, v->max_segment_length
+                , v->first_letter, v->first_segment_length, v->last_letter, v->last_segment_length, v->is_reverse);
         print(v->left);
         printf(",");
         print(v->right);
@@ -200,11 +248,14 @@ void print(Node *v) {
     }
 }
 
+// dostaje nieodpakowany root
 void splay (Node **root, int index) {
 
 
     // Poszukujemy węzła o kluczu k, poczynając od korzenia
     if (*root != NULL) {
+        unpack(*root);
+
         Node *x = kth_node(*root, index);
 
         while (true)           // W pętli węzeł x przesuwamy do korzenia
@@ -248,26 +299,26 @@ void splay (Node **root, int index) {
 
 // i = 1...n
 // wstawia na i-te miejsce węzeł w
-Node *insert(Node *v, int i, Node *w) {
-    if (v == NULL) {
-        return w;
-    }
-    if (v->is_reverse) {
-        reverse(v);
-    }
-
-    splay(&v, i);
-    w->up = v;
-    w->left = v->left;
-    v->left = w;
-    if (w->left != NULL) {
-        w->left->up = w;
-    }
-
-    update(w);
-    update(v);
-    return v;
-}
+//Node *insert(Node *v, int i, Node *w) {
+//    if (v == NULL) {
+//        return w;
+//    }
+//    if (v->is_reverse) {
+//        reverse(v);
+//    }
+//
+//    splay(&v, i);
+//    w->up = v;
+//    w->left = v->left;
+//    v->left = w;
+//    if (w->left != NULL) {
+//        w->left->up = w;
+//    }
+//
+//    update(w);
+//    update(v);
+//    return v;
+//}
 
 Node *remove(Node *root, int index, Node **deleted) {
     splay(&root, index);
@@ -362,13 +413,44 @@ int max_segment_length_interval(Node *root, int j, int k) {
     return max_length;
 }
 
-void operation_N(Node *root, int j, int k) {
+// zwraca nieodpakowane subtree
+Node *find_subtree(Node **root, int j, int k) {
+    if (k - j + 1 == (*root)->count) {
+        return *root;
+    }
+
+    if (k == (*root)->count) {
+        splay(root, j - 1);
+        return (*root)->right;
+    }
+
+    splay(root, k + 1);
+
+    if (j == 1) {
+        return (*root)->left;
+    }
+    else {
+        (*root)->left->up = NULL;
+        splay(&(*root)->left, j - 1);
+        (*root)->left->up = *root;
+        return (*root)->left->right;
+    }
+}
+
+int alternative_max(Node **root, int j, int k) {
+    Node *sub = find_subtree(root, j, k);
+    return sub->max_segment_length;
+}
+
+Node *operation_N(Node *root, int j, int k) {
     if (j == k) {
         cout << "1\n";
     }
     else {
-        cout << max_segment_length_interval(root, j, k) << '\n';
+        cout << alternative_max(&root, j, k) << '\n';
+        //cout << max_segment_length_interval(root, j, k) << '\n';
     }
+    return root;
 }
 
 Node *insert_subtree(Node *root, Node *deleted, int l) {
@@ -440,28 +522,7 @@ Node *operation_P(Node *root, int j, int k, int l) {
     return root;
 }
 
-Node *find_subtree(Node **root, int j, int k) {
-    if (k - j + 1 == (*root)->count) {
-        return *root;
-    }
 
-    if (k == (*root)->count) {
-        splay(root, j - 1);
-        return (*root)->right;
-    }
-
-    splay(root, k + 1);
-
-    if (j == 1) {
-        return (*root)->left;
-    }
-    else {
-        (*root)->left->up = NULL;
-        splay(&(*root)->left, j - 1);
-        (*root)->left->up = *root;
-        return (*root)->left->right;
-    }
-}
 
 void reverse_tree(Node *root) {
     if (root->left != NULL) {
@@ -476,6 +537,20 @@ void reverse_tree(Node *root) {
     root->left = tmp;
 
     update(root);
+}
+
+Node *operation_O_alt(Node *root, int j, int k) {
+    if (j == k)
+        return root;
+
+    Node *subtree = find_subtree(&root, j, k);
+
+    make_reversed(subtree);
+
+    if (subtree->up != NULL)
+        update(subtree->up);
+
+    return root;
 }
 
 Node *operation_O(Node *root, int j, int k) {
@@ -497,13 +572,6 @@ void delete_tree(Node *root) {
     delete root;
 }
 
-void print_code(Node *root) {
-    if (root != NULL) {
-        print_code(root->left);
-        cout << root->letter;
-        print_code(root->right);
-    }
-}
 
 int main() {
     std::ios_base::sync_with_stdio(false);
@@ -529,7 +597,8 @@ int main() {
         std::cin >> k;
         switch (type) {
             case 'O':
-                root = operation_O(root, j, k);
+                root = operation_O_alt(root, j, k);
+//                print(root);
 //                print_code(root);
 //                cout <<endl;
                 break;
@@ -540,7 +609,9 @@ int main() {
 //                cout << endl;
                 break;
             case 'N':
-                operation_N(root, j, k);
+                root = operation_N(root, j, k);
+//                print_code(root);
+//                cout <<endl;
         }
     }
 
