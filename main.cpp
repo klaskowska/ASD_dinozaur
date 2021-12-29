@@ -1,8 +1,4 @@
 #include <iostream>
-#include <cassert>
-
-// na razie bez uwzgledniania is_reverse
-// moze to po prostu zrobic jako że wyznaczamy poddrzewo i robimy od razu na nim reverse
 
 using namespace std;
 
@@ -250,8 +246,6 @@ void print(Node *v) {
 
 // dostaje nieodpakowany root
 void splay (Node **root, int index) {
-
-
     // Poszukujemy węzła o kluczu k, poczynając od korzenia
     if (*root != NULL) {
         unpack(*root);
@@ -297,57 +291,6 @@ void splay (Node **root, int index) {
     }
 }
 
-// i = 1...n
-// wstawia na i-te miejsce węzeł w
-//Node *insert(Node *v, int i, Node *w) {
-//    if (v == NULL) {
-//        return w;
-//    }
-//    if (v->is_reverse) {
-//        reverse(v);
-//    }
-//
-//    splay(&v, i);
-//    w->up = v;
-//    w->left = v->left;
-//    v->left = w;
-//    if (w->left != NULL) {
-//        w->left->up = w;
-//    }
-//
-//    update(w);
-//    update(v);
-//    return v;
-//}
-
-Node *remove(Node *root, int index, Node **deleted) {
-    splay(&root, index);
-    Node *l = root->left;
-    Node *r = root->right;
-    root->up = NULL;
-    root->left = NULL;
-    root->right = NULL;
-    *deleted = root;
-    root = NULL;
-
-    if (l == NULL) {
-        return r;
-    }
-    if (r == NULL) {
-        return l;
-    }
-
-    l->up = NULL;
-    splay(&l, index);
-    l->right = r;
-    r->up = l;
-    root = l;
-    update(l);
-
-    return root;
-}
-
-
 
 Node *create_tree(size_t code_length, char *code) {
     if (code_length <= 0)
@@ -363,54 +306,6 @@ Node *create_tree(size_t code_length, char *code) {
         root->right->up = root;
     update(root);
     return root;
-}
-
-void update_length(Node *root, bool *is_value, int *max_length, char *last_letter, int *last_segment_length) {
-    if (*is_value && *last_letter == root->first_letter) {
-        *max_length = max(*max_length, *last_segment_length + root->first_segment_length);
-        if (is_uniform(root)) {
-            *last_segment_length += root->count;
-        }
-        else {
-            *last_letter = root->last_letter;
-            *last_segment_length = root->last_segment_length;
-        }
-    }
-    else {
-        *last_letter = root->last_letter;
-        *last_segment_length = root->last_segment_length;
-    }
-    *max_length = max(*max_length, root->max_segment_length);
-    *is_value = true;
-}
-
-void max_segment_length_interval_helper(Node *root, int j, int k, bool *is_value, int *max_length, char *last_letter,
-                                        int *last_segment_length) {
-    if (k - j + 1 == get_count(root)) {
-        update_length(root, is_value, max_length, last_letter, last_segment_length);
-    }
-    else {
-        if (j <= get_count(root->left)) {
-            max_segment_length_interval_helper(root->left, j, min(k, get_count(root->left)), is_value, max_length, last_letter, last_segment_length);
-        }
-        if (j <= get_count(root->left) + 1 && k >= get_count(root->left) + 1) {
-            Node *tmp = new Node(root->letter);
-            update_length(tmp, is_value, max_length, last_letter, last_segment_length);
-            delete tmp;
-        }
-        if (k > get_count(root->left) + 1) {
-            max_segment_length_interval_helper(root->right, max(1, j - get_count(root->left) - 1), k - get_count(root->left) - 1, is_value, max_length, last_letter, last_segment_length);
-        }
-    }
-}
-
-int max_segment_length_interval(Node *root, int j, int k) {
-    bool is_value = false;
-    int max_length = 1;
-    int last_segment_length;
-    char last_letter;
-    max_segment_length_interval_helper(root, j, k, &is_value, &max_length, &last_letter, &last_segment_length);
-    return max_length;
 }
 
 // zwraca nieodpakowane subtree
@@ -478,6 +373,38 @@ Node *insert_subtree(Node *root, Node *deleted, int l) {
     return root;
 }
 
+
+Node *operation_P_alt(Node *root, int j, int k, int l) {
+    if (k - j + 1 == root->count) {
+        return root;
+    }
+
+    Node *subtree = find_subtree(&root, j, k);
+    subtree->up = NULL;
+
+
+    if (k == root->count) {
+        root->right = NULL;
+        update(root);
+    }
+    else {
+        if (j == 1) {
+            root->left = NULL;
+            update(root);
+        } else {
+            root->left->right = root;
+            root = root->left;
+            root->right->left = NULL;
+            root->right->up = root;
+            update(root->right);
+            root->up = NULL;
+            update(root);
+        }
+    }
+    root = insert_subtree(root, subtree, l);
+    return root;
+}
+
 Node *operation_P(Node *root, int j, int k, int l) {
     if (k - j + 1 == root->count) {
         return root;
@@ -523,22 +450,6 @@ Node *operation_P(Node *root, int j, int k, int l) {
 }
 
 
-
-void reverse_tree(Node *root) {
-    if (root->left != NULL) {
-        reverse_tree(root->left);
-    }
-    if (root->right != NULL) {
-        reverse_tree(root->right);
-    }
-
-    Node *tmp = root->right;
-    root->right = root->left;
-    root->left = tmp;
-
-    update(root);
-}
-
 Node *operation_O_alt(Node *root, int j, int k) {
     if (j == k)
         return root;
@@ -547,20 +458,13 @@ Node *operation_O_alt(Node *root, int j, int k) {
 
     make_reversed(subtree);
 
-    if (subtree->up != NULL)
-        update(subtree->up);
-
-    return root;
-}
-
-Node *operation_O(Node *root, int j, int k) {
-    if (j == k)
-        return root;
-    Node *subtree = find_subtree(&root, j, k);
     Node *father = subtree->up;
-    reverse_tree(subtree);
-    if (father != NULL)
+
+    while (father != NULL) {
         update(father);
+        father = father->up;
+    }
+
     return root;
 }
 
@@ -604,7 +508,7 @@ int main() {
                 break;
             case 'P':
                 std::cin >> l;
-                root = operation_P(root, j, k, l);
+                root = operation_P_alt(root, j, k, l);
 //                print_code(root);
 //                cout << endl;
                 break;
